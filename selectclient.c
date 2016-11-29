@@ -7,7 +7,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
-#include <arpa/inet.h> 
+#include <arpa/inet.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define BUFFERSIZE 1024
 
@@ -22,9 +25,11 @@ int receiveInput(char* buf, int size)
       buf[counter++] = c;
     }
   }
+  
+  buf[counter]=c;
 
   // Terminate the string
-  buf[counter] = '\0';
+  buf[++counter] = '\0';
 
   // Length of the string
   return counter;
@@ -32,6 +37,8 @@ int receiveInput(char* buf, int size)
 
 int main()
 {
+  fd_set readfds;
+
   int clientSocket;
   char buffer[BUFFERSIZE];
   struct sockaddr_in serverAddr;
@@ -60,24 +67,48 @@ int main()
   connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
 
   memset(message, '\0',BUFFERSIZE);
+  FD_ZERO(&readfds);
+  FD_SET(clientSocket, &readfds);
+  FD_SET(0, &readfds);
 
-  while(strcmp(message,"exit") != 0)
+  while(1)
   {
-    // Read from stdin
-    receiveInput(message, BUFFERSIZE);
+    select(clientSocket+1, &readfds, NULL, NULL, NULL);
+    
+    // Got something from STDIN
+    if(FD_ISSET(0, &readfds))
+    {
+      // Read from stdin
+      receiveInput(message, BUFFERSIZE);
+      if(strcmp(message,"exit") == 0)
+      {
+        goto gracefulExit;
+      }
+      // Send to server
+      send(clientSocket, message, BUFFERSIZE, 0);
 
-    // Send to server
-    send(clientSocket, message, BUFFERSIZE, 0);
+      // Set all bits of the padding field to 0
+      memset(message, '\0',BUFFERSIZE);
+      FD_ZERO(&readfds);
+      FD_SET(clientSocket, &readfds);
+      FD_SET(0, &readfds);
+    }
+    // Got something from the server
+    else if(FD_ISSET(clientSocket, &readfds))
+    {
+      // Read the message from the server into the buffer
+      recv(clientSocket, buffer, BUFFERSIZE, 0);
 
-    // Read the message from the server into the buffer
-    recv(clientSocket, buffer, BUFFERSIZE, 0);
-
-    // Print the received message
-    printf("Data received: %s\n",buffer);
-
-    // Set all bits of the padding field to 0
-    memset(message, '\0',BUFFERSIZE); 
+      // Print the received message
+      printf("Data received: %s",buffer);
+      FD_ZERO(&readfds);
+      FD_SET(clientSocket, &readfds);
+      FD_SET(0, &readfds);
+    }
   }   
+
+gracefulExit:
+  close(clientSocket);
 
   return 0;
 }
