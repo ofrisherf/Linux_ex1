@@ -73,7 +73,7 @@ int main()
     recv(clientSocket, buffer, BUFFERSIZE, 0);
 
     // Print the received message
-    printf("Data received: %s",buffer);
+    printf("Data received: %s\n",buffer);
 
     // Set all bits of the padding field to 0
     memset(message, '\0',BUFFERSIZE); 
