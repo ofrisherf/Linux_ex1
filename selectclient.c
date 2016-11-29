@@ -1,7 +1,6 @@
 // Ex. 1
 // Client for Beej's server
 // Ofri Sherf
-// 312481112
 
 #include <stdio.h>
 #include <sys/socket.h>
