@@ -1,3 +1,4 @@
+.PHONY: all clean
 all : select
 clean :
 	rm -rf selectclient.o selectserver.o
